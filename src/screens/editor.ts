@@ -650,13 +650,19 @@ export function editorScreen(): Screen {
   let editErasePadding = 8;
   let editAlignment: 'right' | 'center' | 'left' = 'center';
 
-  const origField: HTMLTextAreaElement = h('textarea', { class: 'field', rows: 2, 'aria-label': t.edit.original, placeholder: t.edit.original });
+  const origField: HTMLTextAreaElement = h('textarea', {
+    class: 'field', rows: 2, 'aria-label': t.edit.original,
+    placeholder: 'النص أو الرقم المكتشف (مثال: ٢٠٢٦-٠١-٠٩)...',
+    style: 'font-size: 16px; min-height: 44px; direction: rtl;'
+  });
   const newField: HTMLTextAreaElement = h('textarea', {
-    class: 'field', rows: 2, 'aria-label': t.edit.newText, placeholder: t.edit.newText,
+    class: 'field', rows: 2, 'aria-label': t.edit.newText,
+    placeholder: 'اكتب الرقم أو النص الجديد هنا...',
+    style: 'font-size: 16px; min-height: 44px; direction: rtl;',
     oninput: () => { renderEditFontRow(); }
   });
   const editFontRow = h('div', { class: 'row fontrow' });
-  const editPanel = h('section', { class: 'sheet', hidden: true });
+  const editPanel = h('section', { class: 'sheet edit-sheet', hidden: true });
 
   async function triggerDownloadFont(fontName: string) {
     try {
@@ -731,9 +737,9 @@ export function editorScreen(): Screen {
     setChildren(editPanel,
       activeBox
         ? h('div', { class: 'edit-selection-info' },
-            h('span', {}, pick >= 0 ? `السطر المكتشف رقم ${pick + 1}` : 'منطقة محددة يدويًا'),
+            h('span', {}, pick >= 0 ? `السطر المكتشف رقم ${pick + 1}` : 'منطقة محددة يدويًا على الصورة'),
             h('strong', {}, `${Math.round(activeBox.x1 - activeBox.x0)} × ${Math.round(activeBox.y1 - activeBox.y0)} بكسل`),
-            h('button', { class: 'btn ghost small', onclick: () => clearEditSelection() }, 'إلغاء')
+            h('button', { class: 'btn ghost small', onclick: () => clearEditSelection() }, 'إلغاء التحديد')
           )
         : h('p', { class: 'muted' }, t.edit.hint),
 
@@ -742,28 +748,33 @@ export function editorScreen(): Screen {
         h('button', { class: 'btn ghost', onclick: () => { toast(t.edit.manualHint); } }, `👆 ${t.edit.manualSelect}`)
       ),
 
-      h('label', { style: 'font-size: var(--text-xs); font-weight: 700;' }, t.edit.original),
+      h('label', { style: 'font-size: var(--text-xs); font-weight: 700;' }, 'النص / الرقم الأصلي المكتشف (قابل للتعديل):'),
       origField,
 
-      h('label', { style: 'font-size: var(--text-xs); font-weight: 700;' }, t.edit.newText),
+      h('label', { style: 'font-size: var(--text-xs); font-weight: 700;' }, 'النص / الرقم الجديد البديل:'),
       newField,
 
       // Quick numbers toolbar
       h('div', { class: 'num-toolbar' },
-        h('span', { class: 'muted', style: 'font-size: 11px;' }, 'تحويل الأرقام:'),
+        h('span', { class: 'muted', style: 'font-size: 11px; font-weight: 700;' }, 'تحويل الأرقام:'),
         chip(t.edit.toEastern, false, () => {
-          newField.value = toEasternArabicNumerals(newField.value);
+          newField.value = toEasternArabicNumerals(newField.value || origField.value);
           renderEditFontRow();
         }),
         chip(t.edit.toWestern, false, () => {
-          newField.value = toWesternArabicNumerals(newField.value);
+          newField.value = toWesternArabicNumerals(newField.value || origField.value);
           renderEditFontRow();
         }),
         chip('نسخ الأصلي', false, () => {
           newField.value = origField.value;
           renderEditFontRow();
+        }),
+        chip('مسح', false, () => {
+          newField.value = '';
+          renderEditFontRow();
         })
       ),
+
 
       // Font Match Card
       h('article', { class: 'font-result-card' },
@@ -1123,13 +1134,14 @@ export function editorScreen(): Screen {
   const overlay = h('div', { class: 'overlay', hidden: true, role: 'status' }, h('p', {}, t.editor.working),
     h('button', { class: 'btn secondary', onclick: () => job?.cancel() }, t.editor.cancel));
   const runBtn = h('button', { class: 'btn primary', onclick: () => runRemoveBg() }, t.editor.runRemoveBg);
+  const actionsDiv = h('div', { class: 'actions', hidden: !!p.mask }, runBtn);
   async function runRemoveBg() {
     if (job) return;
     overlay.hidden = false; runBtn.disabled = true;
     const j = segment(p!.rgba, W, H, () => {}); job = j;
     try {
       const nextMask = await j.promise; captureHistory(); p!.mask = nextMask;
-      runBtn.textContent = t.editor.removeBg; projects.touch(p!); showTool('cut'); toast(t.editor.cutoutDone);
+      runBtn.textContent = t.editor.removeBg; actionsDiv.hidden = true; projects.touch(p!); showTool('cut'); toast(t.editor.cutoutDone);
     } catch (err) {
       const code = err instanceof SegmentError ? err.code : 'failed';
       if (code === 'model_missing') toast(t.editor.modelMissing, 'error'); else if (code !== 'cancelled') toast(t.editor.failed, 'error');
@@ -1170,6 +1182,7 @@ export function editorScreen(): Screen {
   function showTool(next: Tool | null) {
     if (next === 'bg' && !p!.mask) { toast(t.editor.needCutout); return; }
     tool = next; exportSheet.hidden = true;
+    actionsDiv.hidden = next !== null || !!p!.mask;
     cutPanel.hidden = !(next === 'cut' && !!p!.mask);
     bgPanel.hidden = next !== 'bg'; textPanel.hidden = next !== 'text'; objPanel.hidden = next !== 'obj'; fontPanel.hidden = next !== 'font';
     editPanel.hidden = next !== 'edit'; cropPanel.hidden = next !== 'crop'; clonePanel.hidden = next !== 'clone'; enhancePanel.hidden = next !== 'enhance';
@@ -1184,6 +1197,7 @@ export function editorScreen(): Screen {
     });
     schedule();
   }
+
   const mk = (label: string, k: Tool | null): [HTMLButtonElement, Tool | null] =>
     [h('button', {
       class: 'tool', 'aria-pressed': 'false', 'aria-expanded': 'false',
@@ -1196,9 +1210,10 @@ export function editorScreen(): Screen {
       h('button', { class: 'icon-btn', 'aria-label': t.editor.back, onclick: () => go('/') }, '→'),
       h('div', { class: 'spacer' }), undoBtn, redoBtn, h('button', { class: 'btn primary small', onclick: openExport }, t.editor.export)),
     h('div', { class: 'stage checker' }, canvas, viewControls, overlay),
-    h('div', { class: 'actions' }, runBtn),
+    actionsDiv,
     cutPanel, bgPanel, textPanel, editPanel, objPanel, fontPanel, cropPanel, clonePanel, enhancePanel, exportSheet,
     h('nav', { class: 'toolstrip', 'aria-label': 'tools' }, ...strip.map(([b]) => b)));
+
 
   applyView();
   draw();

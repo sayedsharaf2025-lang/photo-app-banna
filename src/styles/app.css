@@ -38,9 +38,10 @@ h2 { font-size: var(--text-lg); line-height: var(--text-lg-line); margin: var(--
 .zoom-label { min-width: 58px; font-size: var(--text-xs); }
 .zoom-btn[aria-pressed="true"] { background: var(--color-accent); color: var(--color-on-accent); }
 .actions { padding: var(--space-3) var(--space-4); display: flex; justify-content: center; }
+.actions[hidden] { display: none !important; }
 .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3);
   background: rgba(10, 11, 13, .72); }
-.sheet { padding: var(--space-4); background: var(--color-surface); border-top: 1px solid var(--color-border); max-height: 40vh; overflow: auto; display: grid; gap: var(--space-3); }
+.sheet { padding: var(--space-4); background: var(--color-surface); border-top: 1px solid var(--color-border); max-height: 54vh; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; display: grid; gap: var(--space-3); padding-bottom: 72px; }
 .sheet[hidden], .overlay[hidden] { display: none; }
 .row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .row label { min-width: 96px; }
@@ -53,7 +54,8 @@ h2 { font-size: var(--text-lg); line-height: var(--text-lg-line); margin: var(--
 .toasts { position: fixed; inset-inline: var(--space-4); bottom: calc(var(--tool-strip) + var(--space-4)); display: grid; gap: var(--space-2); z-index: 10; }
 .toast { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-surface-raised); border: 1px solid var(--color-border); box-shadow: var(--shadow-pop); }
 .toast.error { border-color: var(--color-danger); }
-.field { width: 100%; padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border-input); background: var(--color-bg); color: var(--color-text); font: inherit; }
+.field { width: 100%; padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border-input); background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 16px; direction: rtl; unicode-bidi: plaintext; }
+
 input[type="color"] { min-width: var(--tap-min); min-height: var(--tap-min); border: 1px solid var(--color-border-input); border-radius: var(--radius-md); background: transparent; padding: 2px; }
 .results { display: grid; gap: var(--space-2); }
 .result { font-size: var(--text-lg); justify-content: space-between; }

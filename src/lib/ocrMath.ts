@@ -148,9 +148,14 @@ export function ctcDecode(logits: Float32Array, T: number, C: number, chars: str
   return out;
 }
 
-/** Arabic comes out in drawn (left-to-right) order: reverse it, then put Latin/number runs back. */
+const HAS_ARABIC_LETTERS = /[\u0621-\u064A\u0671-\u06D3\u06EE-\u06FF]/;
+
+/** Arabic text comes out in drawn (left-to-right) order: reverse it, then put Latin/number runs back.
+ * Pure numbers, dates, license numbers, and Latin text are already in natural left-to-right order and do not require whole-string reversal. */
 export function fixArabicOrder(s: string): string {
-  if (!/[\u0600-\u06FF]/.test(s)) return s;
+  // If there are no Arabic alphabet letters, numbers, dates (e.g. ٢٠٢٦-٠١-٠٩), codes, and Latin text are already in left-to-right order.
+  if (!HAS_ARABIC_LETTERS.test(s)) return s;
+
   // In reversed Arabic output, harakat may appear before their base letter.
   // Keep combining marks attached to the letter when restoring right-to-left order.
   const clusters: string[] = [];
@@ -163,3 +168,4 @@ export function fixArabicOrder(s: string): string {
   const reversed = clusters.reverse().join('');
   return reversed.replace(/[A-Za-z0-9\u0660-\u0669\u06F0-\u06F9][A-Za-z0-9\u0660-\u0669\u06F0-\u06F9.,:%/@+\-\u066B\u066C]*/g, (m) => [...m].reverse().join(''));
 }
+

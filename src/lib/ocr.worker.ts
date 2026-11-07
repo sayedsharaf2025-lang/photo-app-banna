@@ -42,11 +42,24 @@ const handleMessage = async (e: MessageEvent) => {
     if (!rec) rec = await ort.InferenceSession.create(new Uint8Array(await bytes('/models/ocr_rec.onnx', 100_000)), { executionProviders: ['wasm'] });
     const recognizer = rec;
     if (!chars.length) chars = buildChars(new TextDecoder().decode(await bytes('/models/ocr_dict.txt', 100)));
-    const d = detPreprocess(rgba, w, h, 1280);
-    const dout = await det.run({ [det.inputNames[0]]: new ort.Tensor('float32', d.data, [1, 3, d.dh, d.dw]) });
-    const prob = dout[det.outputNames[0]].data as Float32Array;
-    let lines: Rect[] = groupLines(detBoxes(prob, d.dw, d.dh)).map((r) => ({ x0: (r.x0 * w) / d.dw, x1: (r.x1 * w) / d.dw, y0: (r.y0 * h) / d.dh, y1: (r.y1 * h) / d.dh }));
-    if (!lines.length) lines = [{ x0: 0, y0: 0, x1: w, y1: h }]; // tight selection: treat it as one line
+
+    let lines: Rect[] = [];
+    const isSingleLine = h <= 140 || (w / h >= 1.4 && h <= 260) || (w <= 600 && h <= 220);
+    if (isSingleLine) {
+      // For single line selections, dates, words, or tight crops, bypass the detector.
+      // Running DBNet on tight crops chops digits, drops hyphens, and causes fragmentations.
+      lines = [{ x0: 0, y0: 0, x1: w, y1: h }];
+    } else {
+      if (!det) det = await ort.InferenceSession.create(new Uint8Array(await bytes('/models/ocr_det.onnx', 100_000)), { executionProviders: ['wasm'] });
+      const d = detPreprocess(rgba, w, h, 1280);
+      const dout = await det.run({ [det.inputNames[0]]: new ort.Tensor('float32', d.data, [1, 3, d.dh, d.dw]) });
+      const prob = dout[det.outputNames[0]].data as Float32Array;
+      lines = groupLines(detBoxes(prob, d.dw, d.dh)).map((r) => ({ x0: (r.x0 * w) / d.dw, x1: (r.x1 * w) / d.dw, y0: (r.y0 * h) / d.dh, y1: (r.y1 * h) / d.dh }));
+      if (!lines.length || (lines.length === 1 && (lines[0].x1 - lines[0].x0) < w * 0.65)) {
+        lines = [{ x0: 0, y0: 0, x1: w, y1: h }];
+      }
+    }
+
     const texts: string[] = [];
     const compareLines: {name:string;text:string;confidence:number}[][] = [];
     for (const r of lines) {

@@ -74,7 +74,13 @@ test('fixArabicOrder preserves Arabic-Indic and Persian digit runs in mixed Arab
   assert.equal(fixArabicOrder('ab ١٢ با'), 'اب ١٢ ab');
   assert.equal(fixArabicOrder('ab ۱۲ با'), 'اب ۱۲ ab');
   assert.equal(fixArabicOrder('ab +١٢٫٥ با'), 'اب +١٢٫٥ ab');
+  // Official ID cards and driving license dates
+  assert.equal(fixArabicOrder('٢٠٢٦-٠١-٠٩'), '٢٠٢٦-٠١-٠٩');
+  assert.equal(fixArabicOrder('٢٠٢٢-٠٣-٠٦'), '٢٠٢٢-٠٣-٠٦');
+  assert.equal(fixArabicOrder('٢٥٥٠٩٢١١٤٠٠٦٥٤'), '٢٥٥٠٩٢١١٤٠٠٦٥٤');
+  assert.equal(fixArabicOrder('٢٠٢٦-٠١-٠٩ صيخرتلا ةياهن'), 'نهاية الترخيص ٢٠٢٦-٠١-٠٩');
 });
+
 
 test('groupLines attaches detached Arabic dots to nearby glyphs but keeps separate baselines', () => {
   const lines = groupLines([

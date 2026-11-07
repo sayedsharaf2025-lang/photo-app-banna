@@ -20,13 +20,23 @@ function renderShape(font: string, text: string) {
 
 /** Copies the selected rectangle out of an RGBA image. */
 export function cropSel(rgba: Uint8ClampedArray, W: number, sel: Sel) {
-  const x0 = Math.floor(Math.min(sel.x0, sel.x1)), y0 = Math.floor(Math.min(sel.y0, sel.y1));
-  const w = Math.max(1, Math.ceil(Math.abs(sel.x1 - sel.x0))), h = Math.max(1, Math.ceil(Math.abs(sel.y1 - sel.y0)));
+  const H = Math.max(1, Math.floor(rgba.length / (W * 4)));
+  const x0 = Math.max(0, Math.min(W - 1, Math.floor(Math.min(sel.x0, sel.x1))));
+  const y0 = Math.max(0, Math.min(H - 1, Math.floor(Math.min(sel.y0, sel.y1))));
+  const x1 = Math.max(x0 + 1, Math.min(W, Math.ceil(Math.max(sel.x0, sel.x1))));
+  const y1 = Math.max(y0 + 1, Math.min(H, Math.ceil(Math.max(sel.y0, sel.y1))));
+  const w = x1 - x0, h = y1 - y0;
   const crop = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const sx = Math.max(0, Math.min(W - 1, x0 + x)), sy = Math.max(0, Math.floor(y0 + y));
-    const s = (sy * W + sx) * 4, d = (y * w + x) * 4, a = (rgba[s + 3] ?? 255) / 255;
-    crop[d] = Math.round(rgba[s] * a + 255 * (1 - a)); crop[d + 1] = Math.round(rgba[s + 1] * a + 255 * (1 - a)); crop[d + 2] = Math.round(rgba[s + 2] * a + 255 * (1 - a)); crop[d + 3] = 255;
+  for (let y = 0; y < h; y++) {
+    const sy = y0 + y;
+    for (let x = 0; x < w; x++) {
+      const sx = x0 + x;
+      const s = (sy * W + sx) * 4, d = (y * w + x) * 4, a = (rgba[s + 3] ?? 255) / 255;
+      crop[d] = Math.round(rgba[s] * a + 255 * (1 - a));
+      crop[d + 1] = Math.round(rgba[s + 1] * a + 255 * (1 - a));
+      crop[d + 2] = Math.round(rgba[s + 2] * a + 255 * (1 - a));
+      crop[d + 3] = 255;
+    }
   }
   return { crop, w, h };
 }
@@ -49,5 +59,23 @@ export async function findFonts(rgba: Uint8ClampedArray, W: number, sel: Sel, te
       };
     })
     .filter((c): c is { font: string; shape: NonNullable<ReturnType<typeof renderShape>>; categoryAr: string; weight: 400 | 700 } => c.shape !== null);
-  return rankFonts(query, cands);
+  const ranked = rankFonts(query, cands);
+
+  // If the query text is predominantly numbers, dates, or card codes, prioritize modern Kufi and Sans fonts
+  // over flowing cursive/calligraphy scripts like Lateef or Aref Ruqaa which are never used on official cards.
+  const isNumeric = hasAnyNumerals(text) && !/[\u0621-\u064A]{4,}/.test(text);
+  if (isNumeric) {
+    for (const r of ranked) {
+      const def = fontDefOf(r.font);
+      if (def.styleGroup === 'kufi' || def.styleGroup === 'sans') {
+        r.score = Math.min(0.99, r.score * 1.08 + 0.05);
+      } else if (def.styleGroup === 'ruqaa' || def.name === 'Lateef' || def.styleGroup === 'display') {
+        r.score = r.score * 0.88;
+      }
+    }
+    ranked.sort((a, b) => b.score - a.score);
+  }
+
+  return ranked;
 }
+
