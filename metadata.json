@@ -1,0 +1,7 @@
+{
+  "name": "محرر الصور",
+  "description": "تطبيق محرر صور محلي لإزالة الخلفية وتعديل الصور والكتابة عليها",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
